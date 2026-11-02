@@ -509,7 +509,7 @@ class GraphExporter:
         return;
       }}
 
-      const queue = [[[srcNode.id], [srcNode.id]]];
+      const queue = [[srcNode.id, [srcNode.id]]];
       const visited = new Set([srcNode.id]);
       let foundPath = null;
 
@@ -777,7 +777,8 @@ class GraphExporter:
 
       // 1. 绘制边
       for (const e of visibleEdges) {{
-        let isChainEdge = activeCallChainEdges.has(`${{e.source.id}}->${{e.target.id}}`);
+        let isPathEdge = activePathChainEdges.has(`${{e.source.id}}->${{e.target.id}}`);
+        let isChainEdge = isPathEdge || activeCallChainEdges.has(`${{e.source.id}}->${{e.target.id}}`);
         let isHoverEdge = hoveredNode && (e.source === hoveredNode || e.target === hoveredNode);
         let isMatchEdge = filterText && (e.source.name.toLowerCase().includes(filterText) || e.target.name.toLowerCase().includes(filterText));
 

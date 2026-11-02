@@ -1,0 +1,3 @@
+# Graph-RAG Core is 100% pure Python standard library!
+# Zero heavy dependencies (No Neo4j, No LangChain, No Vector DB required)
+# Python >= 3.8

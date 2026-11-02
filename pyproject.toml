@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "code-graph-rag"
+version = "1.0.0"
+description = "Deterministic Code Knowledge Graph & Graph-RAG Engine. Zero-vector, AST-driven multi-hop call chain tracing & 3D galaxy visualization."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "yanlinbao", email = "yanlinbao2024@126.com" }
+]
+keywords = [
+    "graph-rag",
+    "knowledge-graph",
+    "code-analysis",
+    "ast",
+    "debugging",
+    "opencode",
+    "claude-code",
+    "cursor"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Information Analysis"
+]
+
+[project.scripts]
+graph-rag = "graph_rag.cli:main"

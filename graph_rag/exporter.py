@@ -192,7 +192,9 @@ class GraphExporter:
                 "s": e.source,
                 "t": e.target,
                 "k": e.kind.value if hasattr(e.kind, "value") else str(e.kind),
-                "c": e.confidence.value if hasattr(e.confidence, "value") else str(e.confidence)
+                "c": e.confidence.value if hasattr(e.confidence, "value") else str(e.confidence),
+                "l": e.line,
+                "exp": (e.explanation or "").strip()
             })
 
         html = f"""<!DOCTYPE html>
@@ -417,14 +419,20 @@ class GraphExporter:
     }});
 
     const allEdges = [];
+    const edgeLookupMap = new Map();
     for (const e of rawEdges) {{
       const source = nodeMap.get(e.s);
       const target = nodeMap.get(e.t);
       if (source && target && source !== target) {{
-        const edgeObj = {{ source, target, kind: e.k, conf: e.c }};
+        const edgeObj = {{ source, target, kind: e.k, conf: e.c, line: e.l, exp: e.exp }};
         allEdges.push(edgeObj);
         allAdjMap.get(e.s).add(e.t);
         allAdjMap.get(e.t).add(e.s);
+
+        const edgeKey = `${{e.s}}->${{e.t}}`;
+        if (!edgeLookupMap.has(edgeKey)) {{
+          edgeLookupMap.set(edgeKey, edgeObj);
+        }}
 
         if (e.k === 'calls') {{
           outgoingCallsMap.get(e.s).push(e.t);
@@ -471,6 +479,7 @@ class GraphExporter:
     // ==================== 任意两点最短路径追踪穿透 (graph-rag path A B) ====================
     let activePathChainNodes = new Set();
     let activePathChainEdges = new Set();
+    let activePathStepList = [];
 
     function findNodeByKw(kw) {{
       if (!kw) return null;
@@ -538,21 +547,100 @@ class GraphExporter:
         return;
       }}
 
+      activePathChainNodes.clear();
+      activePathChainEdges.clear();
+      activePathStepList = [];
+
       for (let i = 0; i < foundPath.length; i++) {{
         activePathChainNodes.add(foundPath[i]);
-        if (i < foundPath.length - 1) {{
-          activePathChainEdges.add(`${{foundPath[i]}}->${{foundPath[i+1]}}`);
-          activePathChainEdges.add(`${{foundPath[i+1]}}->${{foundPath[i]}}`);
+      }}
+
+      for (let i = 0; i < foundPath.length - 1; i++) {{
+        const u = foundPath[i];
+        const v = foundPath[i+1];
+        activePathChainEdges.add(`${{u}}->${{v}}`);
+        activePathChainEdges.add(`${{v}}->${{u}}`);
+
+        let edge = edgeLookupMap.get(`${{u}}->${{v}}`);
+        let forward = true;
+        if (!edge) {{
+          edge = edgeLookupMap.get(`${{v}}->${{u}}`);
+          forward = false;
         }}
+
+        const kind = edge ? edge.kind : 'calls';
+        const line = edge && edge.line ? edge.line : null;
+        const exp = edge ? edge.exp : '';
+
+        let badgeText = '';
+        let stepText = '';
+
+        if (kind === 'calls') {{
+          badgeText = forward ? `⚡ calls${{line ? ` :L${{line}}` : ''}} ➔` : `⚡ called_by 🠔`;
+          stepText = forward ? `⚡ 调用 (calls)${{line ? ` [第 ${{line}} 行]` : ''}} ➔` : `⚡ 被其调用 (called_by) 🠔`;
+        }} else if (kind === 'imports') {{
+          badgeText = forward ? `📦 imports ➔` : `📦 imported_by 🠔`;
+          stepText = forward ? `📦 模块依赖 (imports) ➔` : `📦 被引入 (imported_by) 🠔`;
+        }} else if (kind === 'defines') {{
+          badgeText = forward ? `🌲 defines ➔` : `🌲 defined_in 🠔`;
+          stepText = forward ? `🌲 声明包含 (defines) ➔` : `🌲 归属于 (defined_in) 🠔`;
+        }} else if (kind === 'inherits') {{
+          badgeText = forward ? `🧬 inherits ➔` : `🧬 parent_of 🠔`;
+          stepText = forward ? `🧬 类继承 (inherits) ➔` : `🧬 父类 (parent_of) 🠔`;
+        }} else {{
+          badgeText = forward ? `🔗 ${{kind}} ➔` : `🔗 ${{kind}} 🠔`;
+          stepText = forward ? `🔗 关联关系 (${{kind}}) ➔` : `🔗 被关联 (${{kind}}) 🠔`;
+        }}
+
+        activePathStepList.push({{
+          sourceId: u,
+          targetId: v,
+          forward: forward,
+          badgeText: badgeText,
+          stepText: stepText,
+          exp: exp,
+          line: line
+        }});
       }}
 
       const hops = foundPath.length - 1;
       resBox.style.display = 'block';
-      const stepsHtml = foundPath.map((nid, idx) => {{
+
+      let stepsHtml = '';
+      for (let i = 0; i < foundPath.length; i++) {{
+        const nid = foundPath[i];
         const n = nodeMap.get(nid);
         const name = n ? n.name : nid.split(':').pop();
-        return `<div class="chain-node" onclick="focusNode(nodeMap.get('${{nid}}'))"><strong style="color:#f59e0b;">#${{idx}}</strong> ${{name}}</div>`;
-      }}).join('<div style="text-align:center; color:#10b981; font-weight:bold; font-size:0.68rem;">⬇ 穿透连线</div>');
+        const kindBadge = n ? `<span style="font-size:0.62rem; padding:1px 5px; border-radius:3px; background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-weight:normal;">${{n.kind}}</span>` : '';
+        const pathLine = n ? `${{n.path}}${{n.line ? `:${{n.line}}` : ''}}` : '';
+        const docText = (n && n.doc) ? `<div style="font-size:0.65rem; color:#94a3b8; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${{n.doc}}">💬 ${{n.doc}}</div>` : '';
+
+        stepsHtml += `
+          <div class="chain-node" onclick="focusNode(nodeMap.get('${{nid}}'))" style="border-left:3px solid #f59e0b; padding:6px 8px; margin:2px 0; background:rgba(245,158,11,0.06); border-radius:4px; cursor:pointer;" title="点击镜头对焦">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.75rem;"><strong style="color:#f59e0b;">#${{i}}</strong> <strong style="color:#f1f5f9;">${{name}}</strong></span>
+              ${{kindBadge}}
+            </div>
+            <div style="font-size:0.68rem; color:#64748b; font-family:monospace; margin-top:2px; word-break:break-all;">📄 ${{pathLine}}</div>
+            ${{docText}}
+          </div>
+        `;
+
+        if (i < foundPath.length - 1) {{
+          const stepInfo = activePathStepList[i];
+          stepsHtml += `
+            <div style="margin:4px 0; padding:2px 0;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div style="height:1px; flex:1; background:linear-gradient(90deg, transparent, rgba(245,158,11,0.5));"></div>
+                <div style="background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.45); border-radius:10px; padding:2px 8px; font-size:0.66rem; color:#fbbf24; font-weight:600; display:flex; align-items:center; gap:4px; box-shadow:0 0 6px rgba(245,158,11,0.2);" title="${{stepInfo.exp || ''}}">
+                  ${{stepInfo.stepText}}
+                </div>
+                <div style="height:1px; flex:1; background:linear-gradient(90deg, rgba(245,158,11,0.5), transparent);"></div>
+              </div>
+            </div>
+          `;
+        }}
+      }}
 
       resBox.innerHTML = `
         <div style="color:#34d399; font-weight:bold; margin-bottom:4px;">✨ 最短连通路径 (${{hops}} 跳):</div>
@@ -577,6 +665,7 @@ class GraphExporter:
     function clearPathTrace() {{
       activePathChainNodes.clear();
       activePathChainEdges.clear();
+      activePathStepList = [];
       document.getElementById('pathResultBox').style.display = 'none';
       document.getElementById('pathSourceInput').value = '';
       document.getElementById('pathTargetInput').value = '';
@@ -872,6 +961,22 @@ class GraphExporter:
           ctx.fillText(n.name, n.projX + r + 4, n.projY + 3);
         }}
       }}
+
+      // 3. 在穿透路径连线上直接绘制关系动作工具标签 (Canvas Edge Labels)
+      if (activePathStepList.length > 0) {{
+        for (const step of activePathStepList) {{
+          const srcNode = nodeMap.get(step.sourceId);
+          const tgtNode = nodeMap.get(step.targetId);
+          if (srcNode && tgtNode) {{
+            const sx = step.forward ? srcNode.projX : tgtNode.projX;
+            const sy = step.forward ? srcNode.projY : tgtNode.projY;
+            const tx = step.forward ? tgtNode.projX : srcNode.projX;
+            const ty = step.forward ? tgtNode.projY : srcNode.projY;
+            drawCanvasEdgeBadge(ctx, sx, sy, tx, ty, step.badgeText);
+          }}
+        }}
+      }}
+
       ctx.globalAlpha = 1.0;
     }}
 
@@ -879,15 +984,55 @@ class GraphExporter:
       const dx = tox - fromx;
       const dy = toy - fromy;
       const angle = Math.atan2(dy, dx);
+      // 放置在 72% 位置，避免被中间的动作标签遮挡
+      const posX = fromx + dx * 0.72;
+      const posY = fromy + dy * 0.72;
+
+      context.beginPath();
+      context.moveTo(posX, posY);
+      context.lineTo(posX - headlen * Math.cos(angle - Math.PI / 6), posY - headlen * Math.sin(angle - Math.PI / 6));
+      context.moveTo(posX, posY);
+      context.lineTo(posX - headlen * Math.cos(angle + Math.PI / 6), posY - headlen * Math.sin(angle + Math.PI / 6));
+      context.stroke();
+    }}
+
+    function drawCanvasEdgeBadge(context, fromx, fromy, tox, toy, text) {{
       const midX = (fromx + tox) / 2;
       const midY = (fromy + toy) / 2;
 
+      context.save();
+      const fontSize = 11;
+      context.font = `bold ${{fontSize}}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      const textMetrics = context.measureText(text);
+      const textWidth = textMetrics.width;
+      const boxW = textWidth + 14;
+      const boxH = 19;
+      const rx = midX - boxW / 2;
+      const ry = midY - boxH / 2;
+      const r = 5;
+
+      context.shadowColor = '#f59e0b';
+      context.shadowBlur = 10;
+      context.fillStyle = 'rgba(10, 15, 29, 0.94)';
+      context.strokeStyle = '#f59e0b';
+      context.lineWidth = 1.4;
+
       context.beginPath();
-      context.moveTo(midX, midY);
-      context.lineTo(midX - headlen * Math.cos(angle - Math.PI / 6), midY - headlen * Math.sin(angle - Math.PI / 6));
-      context.moveTo(midX, midY);
-      context.lineTo(midX - headlen * Math.cos(angle + Math.PI / 6), midY - headlen * Math.sin(angle + Math.PI / 6));
+      if (context.roundRect) {{
+        context.roundRect(rx, ry, boxW, boxH, r);
+      }} else {{
+        context.rect(rx, ry, boxW, boxH);
+      }}
+      context.fill();
       context.stroke();
+
+      context.shadowBlur = 0;
+      context.fillStyle = '#fbbf24';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, midX, midY);
+
+      context.restore();
     }}
 
     function tick() {{

@@ -11,34 +11,45 @@
 **Turn any codebase into a queryable, deterministic Knowledge Graph with 3D Galaxy visualization and multi-hop call chain tracing.**  
 *Zero vector embeddings. Zero LLM API cost. 100% deterministic AST topology.*
 
-[English](#overview) | [中文说明](#项目介绍)
+[English](README.md) | [简体中文](README_zh.md)
 
 </div>
 
 ---
 
-## 🌟 Overview / 项目介绍
+## 🌟 Overview
 
-**Graph-RAG** is an ultra-fast, zero-dependency engine that transforms complex source code into an interactive, deterministic **Code Knowledge Graph**. 
+**Graph-RAG** is an ultra-fast, zero-dependency engine that transforms complex source code into an interactive, deterministic **Code Knowledge Graph**.
 
-Unlike probabilistic Vector RAG (which slices files into arbitrary chunks and suffers from hallucination and missed cross-file relationships), Graph-RAG uses **AST (Abstract Syntax Tree)** parsing and **graph modularity algorithms (Leiden/Louvain)** to construct a verifiable ground truth of your entire architecture.
+### Why Vector RAG Fails for Source Code
+Traditional code retrieval typically relies on Vector RAG (slicing source code into text chunks and calculating semantic embeddings):
+- **Fragmented Context**: Functions, classes, and imports are sliced arbitrarily, destroying call dependencies across multiple files.
+- **Hallucinations & Inexactness**: Semantic vector similarity frequently confuses similar variable names or unrelated boilerplate logic.
+- **Blind to Multi-Hop Call Chains**: A user request like *"Where does the upload endpoint invoke the Excel parser?"* spans 3 to 5 hops across different layers, which vector search completely misses.
+- **High Cost & Latency**: Generating vector embeddings requires heavy LLM token expenditure and dedicated vector databases.
 
-Equipped with an **Interactive 3D Galaxy Viewer** and an automated **OpenCode / Claude Code Skill**, Graph-RAG enables AI coding agents and developers to pinpoint bugs, trace upstream callers, and evaluate blast radius in milliseconds—**completely eliminating blind codebase grepping**.
+### The Graph-RAG Paradigm
+Graph-RAG uses **AST (Abstract Syntax Tree)** static analysis and **graph modularity algorithms (Leiden/Louvain)** to construct a verifiable ground truth of your entire architecture. Every edge is strictly typed (`defines`, `calls`, `imports`, `inherits`) with confidence scoring.
+
+Equipped with a standalone **Interactive 3D Galaxy Viewer** and an automated **OpenCode / Claude Code Agent Skill**, Graph-RAG enables developers and AI agents to pinpoint bugs, trace upstream callers, and evaluate blast radius in milliseconds—**completely eliminating blind codebase grepping**.
 
 ---
 
-## ⚡ Key Highlights / 核心特性
+## ⚡ Key Highlights
 
 - 💎 **100% Deterministic & Verifiable (Zero Hallucination)**:  
-  Every edge is strictly typed (`defines`, `calls`, `imports`) and tagged with confidence (`EXTRACTED` 1.0, `INFERRED` 0.55~0.95, `AMBIGUOUS`). No guesswork.
-- 🪐 **3D Orbit Galaxy Visualization (0 External CDN)**:  
-  Generates a single, self-contained `graph.html` featuring a 360° orbitable 3D planetary system, depth-of-field perspective, and fluid 2D/3D toggling.
-- 🔗 **Multi-Hop Longitudinal Call Chain Tracing**:  
-  Click any function/method to visually illuminate its 1~4 hop downstream execution flow with amber lightbeams, instantly exposing complex execution sequences ($A \rightarrow B \rightarrow C \rightarrow D$).
+  Every relationship is extracted via AST and tagged with explicit confidence levels:
+  - `EXTRACTED` (1.0): Direct syntactic definition/call.
+  - `INFERRED` (0.55 ~ 0.95): Contextual symbol resolution across modules.
+  - `AMBIGUOUS` (0.5): Dynamic dispatch or multiple candidates flagged for audit.
+- 🪐 **Interactive 3D Orbit Galaxy Viewer (Zero CDN / Standalone)**:  
+  Generates a single self-contained `graph.html` featuring full 360° orbital rotation, depth-of-field perspective, real-time physics simulation, and fluid 2D/3D toggling. Works completely offline.
+- 🔗 **Deep Multi-Hop Call Chain Tracing**:  
+  Click any function or method to visually illuminate its 1~4 hop downstream execution flow with amber lightbeams, instantly exposing complex execution sequences ($A \rightarrow B \rightarrow C \rightarrow D$).
 - 📍 **Interactive A-to-B Shortest Path Penetration**:  
-  Trace the shortest execution path between any two symbols (e.g., `standalone_chat_endpoint` ➔ `robust_read_excel`) both via CLI and visually in `graph.html`, complete with floating action capsules (`calls :L1479 ➔`) and step-by-step tool metadata.
+  Input any two symbols (e.g. `standalone_chat_endpoint` and `robust_read_excel`) in `graph.html` or the CLI. Graph-RAG immediately illuminates the shortest path, rendering floating action capsules (`calls :L1479 ➔`), line numbers, and tool metadata on both canvas lines and step-by-step cards.
 - 🧩 **Automated Subsystem Community Detection**:  
-  Partitions codebases into decoupled architectural clusters using graph modularity optimization.
+  Partitions codebases into decoupled architectural clusters using graph modularity optimization (Leiden/Louvain).
 - 👑 **Architectural Insights & Flaw Detection**:  
   Instantly uncovers **God Nodes** (architectural bottlenecks), **Circular Dependencies** (import cycles), and **Orphan Nodes** (dead code).
 - 🤖 **Native AI Agent Skill Ready**:  
@@ -46,21 +57,22 @@ Equipped with an **Interactive 3D Galaxy Viewer** and an automated **OpenCode / 
 
 ---
 
-## 📊 Comparison / 传统方案与 Graph-RAG 对比
+## 📊 Comparison: Grep vs. Vector RAG vs. Graph-RAG
 
-| Dimension / 维度 | Traditional Grep / 全文搜索 | Vector RAG / 向量检索 | 🪐 Graph-RAG (本引擎) |
+| Dimension | Traditional Grep / Full-Text | Vector RAG / Embeddings | 🪐 Graph-RAG (This Engine) |
 |---|---|---|---|
-| **Underlying Principle** | Plain text string matching | Semantic similarity / Dot product | **Deterministic AST Topology & Property Graph** |
-| **Token & API Cost** | Heavy token burn or manual reading | High embedding + vector DB costs | **$0 (Runs 100% locally in milliseconds)** |
-| **Call Chain Tracing** | Unable to track multi-tier calls | Severely broken across file chunks | **Deep 1~4 Hop Chain Tracing with directional flow** |
+| **Underlying Principle** | String/regex matching | Semantic vector similarity | **Deterministic AST Topology & Property Graph** |
+| **Token & API Cost** | High manual review or heavy token burn | Expensive embedding & vector DB costs | **$0 (100% local static analysis in milliseconds)** |
+| **Call Chain Tracing** | Cannot trace multi-tier calls | Severely broken across file chunks | **Deep 1~4 Hop Chain Tracing with directional flow** |
+| **A ➔ B Path Tracing** | Manual guesswork across files | Completely unsupported | **Instant BFS shortest path with exact action labels** |
 | **Search Space** | Entire codebase (Hundreds of files) | Fragmented chunks with noise | **Shrinks search space by 95% to exact subgraphs** |
 | **Safety / Blast Radius** | High risk of breaking unseen callers | Blind to indirect dependencies | **Precise in-degree / out-degree blast radius check** |
 
 ---
 
-## 🚀 Quick Start / 快速开始
+## 🚀 Quick Start
 
-### 1. Installation / 安装
+### 1. Installation
 
 ```bash
 # Clone the repository
@@ -70,83 +82,116 @@ cd Graph-RAG
 # Optional: Install in editable mode for the global `graph-rag` CLI
 pip install -e .
 ```
-*(Graph-RAG core uses only Python standard library—zero heavy dependencies required!)*
+*(Graph-RAG core uses only the Python standard library—zero external dependencies required!)*
 
-### 2. Scan a Codebase / 扫描代码库
+### 2. Scan a Codebase
 
 ```bash
-# Scan any directory or repository
+# Run via python module
 python -m graph_rag /path/to/your/project --output ./graph_rag_out
 
-# Or via installed CLI command:
+# Or via installed global CLI:
 graph-rag /path/to/your/project --output ./graph_rag_out
 ```
 
-### 3. Generated Artifacts / 输出产物
+### 3. Generated Multimodal Artifacts
 
-Graph-RAG produces 4 standard multimodal outputs in the output directory:
-- 🌐 `graph.html`: Interactive 2D/3D Galaxy Explorer. Open directly in any browser (no server needed).
-- 📊 `GRAPH_REPORT.md`: Architectural diagnostic report highlighting God Nodes, Communities, and Circular Dependencies.
-- 📋 `graph.json`: Industrial standard Node-Link JSON (100% compatible with D3.js, NetworkX, and Neo4j).
-- 📐 `graph.mermaid`: Ready-to-render topological flowchart for documentation.
+Graph-RAG produces 4 standard multimodal outputs in the specified output directory:
+
+| File | Format | Description |
+|---|---|---|
+| 🌐 `graph.html` | HTML5 / Canvas | Self-contained 2D/3D interactive visualizer. Open directly in any browser. |
+| 📊 `GRAPH_REPORT.md` | Markdown | Architectural diagnostic report detailing God Nodes, Leiden clusters, and cycles. |
+| 📋 `graph.json` | JSON | Industrial standard Node-Link JSON (100% compatible with D3.js, NetworkX, and Neo4j). |
+| 📐 `graph.mermaid` | Mermaid | Ready-to-render topological flowchart for documentation and GitHub previews. |
+
+---
+
+## 📍 Interactive A-to-B Shortest Path Penetration
+
+Graph-RAG supports tracing the shortest execution route connecting any two symbols across multiple files and layers.
+
+### Via Interactive Web Visualizer (`graph.html`)
+1. Open `graph.html` in your browser.
+2. Locate the **📍 A ➔ B Path Penetration** card in the left sidebar.
+3. Enter Start **A** (e.g., `main` or `standalone_chat_endpoint`) and Target **B** (e.g., `robust_read_excel`).
+4. Click **`⚡ Penetrate & Connect`**:
+   - The entire galaxy dims, focusing on an amber glowing lightbeam traversing the exact path.
+   - High-contrast floating action capsules (e.g., `[⚡ calls :L1479 ➔]`) appear directly on each canvas line segment.
+   - The left panel displays each step with node kind, file location (`main.py:1450`), and tool description.
+
+### Via Command-Line Interface (CLI)
+```bash
+# Using the built-in query tool (zero files opened)
+python skills/graph-rag/scripts/query_graph.py "standalone_chat_endpoint" "robust_read_excel" --graph ./graph_rag_out/graph.json
+```
+
+**Output:**
+```text
+✨ [Shortest Path Found]: 3 hops (Zero files opened)
+  #0 [function] main:standalone_chat_endpoint (main.py:1450)
+     ── ⚡ calls (L1479) ──>
+  #1 [method] services.data_engine:DataAnalysisEngine.build_fact_sheet (services/data_engine.py:560)
+     ── ⚡ calls (L583) ──>
+  #2 [method] services.data_engine:DataAnalysisEngine.load_dataframes (services/data_engine.py:530)
+     ── ⚡ calls (L542) ──>
+  #3 [function] services.visualizer:robust_read_excel (services/visualizer.py:25)
+```
 
 ---
 
 ## 🤖 Using as an OpenCode / AI Agent Skill
 
-Graph-RAG comes with a battle-tested agent skill for precision debugging:
+Graph-RAG includes a battle-tested agent skill that instructs AI coding assistants (OpenCode, Claude Code, Cursor) to debug code with precision: **"Target the graph first, fix the root cause locally, never grep blindly."**
 
-1. Copy the skill to your OpenCode or Claude config directory:
+### 1. Register Skill
 ```bash
-# For OpenCode
+# For OpenCode: copy to global skill directory
 cp -r skills/graph-rag ~/.config/opencode/skills/
 ```
 
-2. When an error occurs or analyzing execution paths, query the graph directly:
+### 2. Single-Symbol Diagnostic Workflow
+When an exception stack trace or bug report arrives, the agent queries the symbol's blast radius:
 ```bash
-# Mode 1: Single symbol diagnostic (blast radius, callers, callees)
-python skills/graph-rag/scripts/query_graph.py "function_or_symbol_name" --graph ./graph_rag_out/graph.json
-
-# Mode 2: Shortest path penetration between two components (Zero files opened)
-python skills/graph-rag/scripts/query_graph.py "standalone_chat_endpoint" "robust_read_excel" --graph ./graph_rag_out/graph.json
+python skills/graph-rag/scripts/query_graph.py "DataAnalysisEngine" --graph ./graph_rag_out/graph.json
 ```
 
 **Diagnostic Output:**
 ```text
-🎯 [Target Symbol]: OrderController.create_order (method)
-   - Location: examples/demo_app/main.py:14
-   - Subsystem: Cluster #1 (Order Management)
-   - Degree: 5 (Ordinary Business Node)
+🎯 [Target Symbol]: DataAnalysisEngine (class)
+   - Location: services/data_engine.py:18
+   - Subsystem: Cluster #2 (Data Processing)
+   - Degree: 28 (God Node Warning: Core Architecture Component)
 
-🔍 [Upstream Callers] (Who triggers this):
-   ▲ [calls] main ➔ examples/demo_app/main.py:24
+🔍 [Upstream Callers] (Who invokes this component):
+   ▲ [calls] standalone_chat_endpoint ➔ main.py:1479
+   ▲ [calls] execute_report_workflow ➔ services/data_engine.py:840
 
-⚡ [Downstream Dependencies] (Who does this call):
-   ▼ [calls] PaymentService.charge ➔ examples/demo_app/services.py:9
-   ▼ [calls] OrderRepository.save_order ➔ examples/demo_app/services.py:27
-   ▼ [calls] NotificationService.send_email ➔ examples/demo_app/services.py:22
+⚡ [Downstream Dependencies] (What does this component invoke):
+   ▼ [calls] robust_read_excel ➔ services/visualizer.py:25
+   ▼ [calls] build_fact_sheet ➔ services/data_engine.py:560
 ```
 
 ---
 
-## 🛠️ Architecture / 系统架构
+## 🛠️ Architecture & Pipeline
 
 ```mermaid
 flowchart LR
-    A[Source Code] --> B[AST Extractor]
-    B -->|Deterministic Triples| C[Graph Builder]
+    A[Source Code Base] --> B[AST Deterministic Extractor]
+    B -->|Deterministic Triples| C[Graph Builder & Linker]
     C --> D[Topology Analyzer]
     C --> E[Leiden Community Detection]
     D & E --> F[Multi-Modal Exporter]
-    F --> G1[graph.html 2D/3D]
-    F --> G2[GRAPH_REPORT.md]
-    F --> G3[graph.json]
-    F --> G4[graph.mermaid]
+    F --> G1["🌐 graph.html (2D/3D Canvas)"]
+    F --> G2["📊 GRAPH_REPORT.md"]
+    F --> G3["📋 graph.json"]
+    F --> G4["📐 graph.mermaid"]
 ```
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+This project is licensed under the [Apache License 2.0](LICENSE).  
 Distributed under the terms of the Apache-2.0 license.

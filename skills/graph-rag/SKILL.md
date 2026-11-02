@@ -35,11 +35,12 @@ description: 基于确定性知识图谱的代码故障排查与精准溯源定�
 python -m graph_rag . --output ./graph_rag_out
 ```
 
-### 第二步：提取异常符号，执行拓扑溯源 (Topological Tracing)
+### 第二步：提取异常符号，执行拓扑溯源与链路穿透 (Topological Tracing)
 
 从报错信息、URL 路由、或用户描述中提取核心符号（函数名、类名、变量名或报错文件）。
-调用内置的图谱查询工具获取故障节点的上下游关系：
+调用内置的图谱查询工具获取故障节点的上下游关系或两点调用穿透链路：
 
+#### 模式 1：单点符号深度诊断 (上下游调用与爆炸半径)
 ```bash
 python .config/opencode/skills/graph-rag/scripts/query_graph.py "<报错符号或函数名>" --graph ./graph_rag_out/graph.json
 ```
@@ -49,6 +50,23 @@ python .config/opencode/skills/graph-rag/scripts/query_graph.py "<报错符号�
 2. **上游调用源（In-degree Callers）**：是谁调用了发生异常的函数？（往往“报错的那一行是受害者，真正传错参数的罪魁祸首在上游”）；
 3. **下游依赖（Out-degree Callees）**：它调用的底层组件是否为空、是否未初始化；
 4. **God Node 警示**：如果该节点度数极高（God Node），说明是系统主干，修改时不能随意改变函数签名或返回值结构。
+
+#### 模式 2：任意两点调用路径穿透 (A ➔ B Shortest Path)
+当需要探查入口端点与底层工具之间的调用链路（例如：“前端接口是如何调用底层 Excel 解析工具的？”）：
+```bash
+python .config/opencode/skills/graph-rag/scripts/query_graph.py "<起点A>" "<终点B>" --graph ./graph_rag_out/graph.json
+```
+**输出示例：**
+```text
+✨ [Shortest Path Found]: 3 hops (Zero files opened)
+  #0 [function] main:standalone_chat_endpoint (main.py:1450)
+     ── ⚡ calls (L1479) ──>
+  #1 [method] services.data_engine:DataAnalysisEngine.build_fact_sheet (services/data_engine.py:560)
+     ── ⚡ calls (L583) ──>
+  #2 [method] services.data_engine:DataAnalysisEngine.load_dataframes (services/data_engine.py:530)
+     ── ⚡ calls (L542) ──>
+  #3 [function] services.visualizer:robust_read_excel (services/visualizer.py:25)
+```
 
 ### 第三步：靶向深入代码与日志审计 (Precision Code Audit)
 

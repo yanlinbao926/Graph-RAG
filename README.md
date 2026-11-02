@@ -35,6 +35,8 @@ Equipped with an **Interactive 3D Galaxy Viewer** and an automated **OpenCode / 
   Generates a single, self-contained `graph.html` featuring a 360° orbitable 3D planetary system, depth-of-field perspective, and fluid 2D/3D toggling.
 - 🔗 **Multi-Hop Longitudinal Call Chain Tracing**:  
   Click any function/method to visually illuminate its 1~4 hop downstream execution flow with amber lightbeams, instantly exposing complex execution sequences ($A \rightarrow B \rightarrow C \rightarrow D$).
+- 📍 **Interactive A-to-B Shortest Path Penetration**:  
+  Trace the shortest execution path between any two symbols (e.g., `standalone_chat_endpoint` ➔ `robust_read_excel`) both via CLI and visually in `graph.html`, complete with floating action capsules (`calls :L1479 ➔`) and step-by-step tool metadata.
 - 🧩 **Automated Subsystem Community Detection**:  
   Partitions codebases into decoupled architectural clusters using graph modularity optimization.
 - 👑 **Architectural Insights & Flaw Detection**:  
@@ -100,9 +102,13 @@ Graph-RAG comes with a battle-tested agent skill for precision debugging:
 cp -r skills/graph-rag ~/.config/opencode/skills/
 ```
 
-2. When an error occurs, query the graph directly instead of blind grepping:
+2. When an error occurs or analyzing execution paths, query the graph directly:
 ```bash
+# Mode 1: Single symbol diagnostic (blast radius, callers, callees)
 python skills/graph-rag/scripts/query_graph.py "function_or_symbol_name" --graph ./graph_rag_out/graph.json
+
+# Mode 2: Shortest path penetration between two components (Zero files opened)
+python skills/graph-rag/scripts/query_graph.py "standalone_chat_endpoint" "robust_read_excel" --graph ./graph_rag_out/graph.json
 ```
 
 **Diagnostic Output:**

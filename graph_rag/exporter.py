@@ -258,7 +258,26 @@ class GraphExporter:
       </div>
     </div>
 
-    <input type="text" id="searchInput" class="search-box" placeholder="搜索函数、类、模块、文件名...">
+    <!-- 节点模糊搜索 -->
+    <input type="text" id="searchInput" class="search-box" placeholder="🔍 快速搜索函数、类、模块、文件名...">
+
+    <!-- 任意两点最短路径追踪控制器 (graph-rag path UI) -->
+    <div class="stat-card" style="border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.04);">
+      <div style="font-weight:600; color:#f59e0b; font-size:0.75rem; margin-bottom:0.4rem; display:flex; justify-content:space-between;">
+        <span>📍 任意两点调用路径穿透</span>
+        <span style="font-size:0.68rem; color:#94a3b8;">A ➔ B 穿透</span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.35rem;">
+        <input type="text" id="pathSourceInput" class="search-box" placeholder="起点 A: 如 main 或 standalone_chat" style="padding:0.38rem 0.6rem; font-size:0.75rem;">
+        <input type="text" id="pathTargetInput" class="search-box" placeholder="终点 B: 如 robust_read_excel 或 Docx" style="padding:0.38rem 0.6rem; font-size:0.75rem;">
+        <div style="display:flex; gap:0.35rem; margin-top:2px;">
+          <button class="filter-btn active" style="flex:1; background:rgba(245,158,11,0.2); border-color:#f59e0b; color:#f59e0b; font-weight:bold;" onclick="triggerShortestPath()">⚡ 穿透连线</button>
+          <button class="filter-btn" style="flex:0.6;" onclick="clearPathTrace()">清除</button>
+        </div>
+      </div>
+      <div id="pathResultBox" style="display:none; margin-top:0.45rem; font-size:0.72rem; line-height:1.5; color:#cbd5e1; border-top:1px dashed rgba(255,255,255,0.1); padding-top:0.35rem;">
+      </div>
+    </div>
 
     <!-- 概览面板 -->
     <div class="stat-card">
@@ -447,6 +466,121 @@ class GraphExporter:
         document.getElementById('physicsToggleBtn').innerText = '⏸️ 暂停运动';
         requestAnimationFrame(tick);
       }}
+    }}
+
+    // ==================== 任意两点最短路径追踪穿透 (graph-rag path A B) ====================
+    let activePathChainNodes = new Set();
+    let activePathChainEdges = new Set();
+
+    function findNodeByKw(kw) {{
+      if (!kw) return null;
+      const kw_l = kw.toLowerCase().trim();
+      for (const n of nodes) {{
+        if (n.name.toLowerCase() === kw_l || n.id.toLowerCase() === kw_l) return n;
+      }}
+      for (const n of nodes) {{
+        if (n.name.toLowerCase().includes(kw_l) || n.id.toLowerCase().includes(kw_l)) return n;
+      }}
+      return null;
+    }}
+
+    function triggerShortestPath() {{
+      const srcText = document.getElementById('pathSourceInput').value.trim();
+      const tgtText = document.getElementById('pathTargetInput').value.trim();
+      const resBox = document.getElementById('pathResultBox');
+
+      if (!srcText || !tgtText) {{
+        resBox.style.display = 'block';
+        resBox.innerHTML = '<span style="color:#ef4444;">请同时输入起点 A 与终点 B</span>';
+        return;
+      }}
+
+      const srcNode = findNodeByKw(srcText);
+      const tgtNode = findNodeByKw(tgtText);
+
+      if (!srcNode) {{
+        resBox.style.display = 'block';
+        resBox.innerHTML = `<span style="color:#ef4444;">未在图谱中找到起点: "${{srcText}}"</span>`;
+        return;
+      }}
+      if (!tgtNode) {{
+        resBox.style.display = 'block';
+        resBox.innerHTML = `<span style="color:#ef4444;">未在图谱中找到终点: "${{tgtText}}"</span>`;
+        return;
+      }}
+
+      const queue = [[[srcNode.id], [srcNode.id]]];
+      const visited = new Set([srcNode.id]);
+      let foundPath = null;
+
+      while (queue.length > 0) {{
+        const [currId, pathHistory] = queue.shift();
+        if (currId === tgtNode.id) {{
+          foundPath = pathHistory;
+          break;
+        }}
+
+        const neighbors = allAdjMap.get(currId) || new Set();
+        for (const nxtId of neighbors) {{
+          if (!visited.has(nxtId)) {{
+            visited.add(nxtId);
+            queue.push([nxtId, pathHistory.concat([nxtId])]);
+          }}
+        }}
+      }}
+
+      activePathChainNodes.clear();
+      activePathChainEdges.clear();
+
+      if (!foundPath) {{
+        resBox.style.display = 'block';
+        resBox.innerHTML = `<span style="color:#f59e0b;">在图谱中两者未产生直接连通链路 (孤立子系统)</span>`;
+        return;
+      }}
+
+      for (let i = 0; i < foundPath.length; i++) {{
+        activePathChainNodes.add(foundPath[i]);
+        if (i < foundPath.length - 1) {{
+          activePathChainEdges.add(`${{foundPath[i]}}->${{foundPath[i+1]}}`);
+          activePathChainEdges.add(`${{foundPath[i+1]}}->${{foundPath[i]}}`);
+        }}
+      }}
+
+      const hops = foundPath.length - 1;
+      resBox.style.display = 'block';
+      const stepsHtml = foundPath.map((nid, idx) => {{
+        const n = nodeMap.get(nid);
+        const name = n ? n.name : nid.split(':').pop();
+        return `<div class="chain-node" onclick="focusNode(nodeMap.get('${{nid}}'))"><strong style="color:#f59e0b;">#${{idx}}</strong> ${{name}}</div>`;
+      }}).join('<div style="text-align:center; color:#10b981; font-weight:bold; font-size:0.68rem;">⬇ 穿透连线</div>');
+
+      resBox.innerHTML = `
+        <div style="color:#34d399; font-weight:bold; margin-bottom:4px;">✨ 最短连通路径 (${{hops}} 跳):</div>
+        ${{stepsHtml}}
+      `;
+
+      const midX = (srcNode.x + tgtNode.x) / 2;
+      const midY = (srcNode.y + tgtNode.y) / 2;
+      if (viewMode === '3D') {{
+        pan3D.x = -midX * 0.8;
+        pan3D.y = -midY * 0.8;
+        cameraZ = 650;
+      }} else {{
+        transform2D.k = 1.4;
+        transform2D.x = width / 2 - midX * transform2D.k;
+        transform2D.y = height / 2 - midY * transform2D.k;
+      }}
+
+      reheatPhysics(0.5);
+    }}
+
+    function clearPathTrace() {{
+      activePathChainNodes.clear();
+      activePathChainEdges.clear();
+      document.getElementById('pathResultBox').style.display = 'none';
+      document.getElementById('pathSourceInput').value = '';
+      document.getElementById('pathTargetInput').value = '';
+      reheatPhysics(0.2);
     }}
 
     // ==================== 多级多跳调用链延伸算法 ====================
@@ -638,7 +772,7 @@ class GraphExporter:
         }}
       }}
 
-      const hasFocusChain = activeCallChainNodes.size > 0;
+      const hasFocusChain = activeCallChainNodes.size > 0 || activePathChainNodes.size > 0;
       const activeNeighbors = hoveredNode ? allAdjMap.get(hoveredNode.id) : null;
 
       // 1. 绘制边
@@ -689,7 +823,8 @@ class GraphExporter:
       for (const n of nodes) {{
         let isSelected = (n === selectedNode);
         let isHovered = (n === hoveredNode);
-        let inChain = activeCallChainNodes.has(n.id);
+        let inPath = activePathChainNodes.has(n.id);
+        let inChain = inPath || activeCallChainNodes.has(n.id);
         let isNeighbor = activeNeighbors ? activeNeighbors.has(n.id) : false;
         let isMatched = filterText ? (n.name.toLowerCase().includes(filterText) || n.path.toLowerCase().includes(filterText)) : false;
 

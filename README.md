@@ -47,7 +47,7 @@ Equipped with a standalone **Interactive 3D Galaxy Viewer** and an automated **O
 - 🔗 **Deep Multi-Hop Call Chain Tracing**:  
   Click any function or method to visually illuminate its 1~4 hop downstream execution flow with amber lightbeams, instantly exposing complex execution sequences ($A \rightarrow B \rightarrow C \rightarrow D$).
 - 📍 **Interactive A-to-B Shortest Path Penetration**:  
-  Input any two symbols (e.g. `standalone_chat_endpoint` and `robust_read_excel`) in `graph.html` or the CLI. Graph-RAG immediately illuminates the shortest path, rendering floating action capsules (`calls :L1479 ➔`), line numbers, and tool metadata on both canvas lines and step-by-step cards.
+  Input any two symbols (e.g. `api_endpoint` and `database_writer` or `create_order` and `send_notification`) in `graph.html` or the CLI. Graph-RAG immediately illuminates the shortest path, rendering floating action capsules (`calls :L42 ➔`), line numbers, and tool metadata on both canvas lines and step-by-step cards.
 - 🧩 **Automated Subsystem Community Detection**:  
   Partitions codebases into decoupled architectural clusters using graph modularity optimization (Leiden/Louvain).
 - 👑 **Architectural Insights & Flaw Detection**:  
@@ -114,28 +114,28 @@ Graph-RAG supports tracing the shortest execution route connecting any two symbo
 ### Via Interactive Web Visualizer (`graph.html`)
 1. Open `graph.html` in your browser.
 2. Locate the **📍 A ➔ B Path Penetration** card in the left sidebar.
-3. Enter Start **A** (e.g., `main` or `standalone_chat_endpoint`) and Target **B** (e.g., `robust_read_excel`).
+3. Enter Start **A** (e.g., `handle_request` or `OrderController`) and Target **B** (e.g., `save_record` or `NotificationService`).
 4. Click **`⚡ Penetrate & Connect`**:
    - The entire galaxy dims, focusing on an amber glowing lightbeam traversing the exact path.
-   - High-contrast floating action capsules (e.g., `[⚡ calls :L1479 ➔]`) appear directly on each canvas line segment.
-   - The left panel displays each step with node kind, file location (`main.py:1450`), and tool description.
+   - High-contrast floating action capsules (e.g., `[⚡ calls :L88 ➔]`) appear directly on each canvas line segment.
+   - The left panel displays each step with node kind, file location (`api/server.py:42`), and tool description.
 
 ### Via Command-Line Interface (CLI)
 ```bash
 # Using the built-in query tool (zero files opened)
-python skills/graph-rag/scripts/query_graph.py "standalone_chat_endpoint" "robust_read_excel" --graph ./graph_rag_out/graph.json
+python skills/graph-rag/scripts/query_graph.py "handle_request" "save_record" --graph ./graph_rag_out/graph.json
 ```
 
 **Output:**
 ```text
 ✨ [Shortest Path Found]: 3 hops (Zero files opened)
-  #0 [function] main:standalone_chat_endpoint (main.py:1450)
-     ── ⚡ calls (L1479) ──>
-  #1 [method] services.data_engine:DataAnalysisEngine.build_fact_sheet (services/data_engine.py:560)
-     ── ⚡ calls (L583) ──>
-  #2 [method] services.data_engine:DataAnalysisEngine.load_dataframes (services/data_engine.py:530)
-     ── ⚡ calls (L542) ──>
-  #3 [function] services.visualizer:robust_read_excel (services/visualizer.py:25)
+  #0 [function] api_server:handle_request (api/server.py:42)
+     ── ⚡ calls (L56) ──>
+  #1 [method] order_service:OrderService.create_order (services/order.py:118)
+     ── ⚡ calls (L142) ──>
+  #2 [method] order_repository:OrderRepository.save_record (repositories/order.py:75)
+     ── ⚡ calls (L88) ──>
+  #3 [function] db_client:execute_query (database/client.py:20)
 ```
 
 ---
@@ -153,23 +153,23 @@ cp -r skills/graph-rag ~/.config/opencode/skills/
 ### 2. Single-Symbol Diagnostic Workflow
 When an exception stack trace or bug report arrives, the agent queries the symbol's blast radius:
 ```bash
-python skills/graph-rag/scripts/query_graph.py "DataAnalysisEngine" --graph ./graph_rag_out/graph.json
+python skills/graph-rag/scripts/query_graph.py "OrderService" --graph ./graph_rag_out/graph.json
 ```
 
 **Diagnostic Output:**
 ```text
-🎯 [Target Symbol]: DataAnalysisEngine (class)
-   - Location: services/data_engine.py:18
-   - Subsystem: Cluster #2 (Data Processing)
-   - Degree: 28 (God Node Warning: Core Architecture Component)
+🎯 [Target Symbol]: OrderService (class)
+   - Location: services/order.py:24
+   - Subsystem: Cluster #2 (Business Logic)
+   - Degree: 16 (Core Service Node)
 
 🔍 [Upstream Callers] (Who invokes this component):
-   ▲ [calls] standalone_chat_endpoint ➔ main.py:1479
-   ▲ [calls] execute_report_workflow ➔ services/data_engine.py:840
+   ▲ [calls] api_server:handle_request ➔ api/server.py:56
+   ▲ [calls] webhook_handler:on_payment_success ➔ handlers/webhook.py:92
 
 ⚡ [Downstream Dependencies] (What does this component invoke):
-   ▼ [calls] robust_read_excel ➔ services/visualizer.py:25
-   ▼ [calls] build_fact_sheet ➔ services/data_engine.py:560
+   ▼ [calls] OrderRepository.save_record ➔ repositories/order.py:75
+   ▼ [calls] NotificationService.send_email ➔ services/notification.py:40
 ```
 
 ---

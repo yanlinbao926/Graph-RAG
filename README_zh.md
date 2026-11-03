@@ -47,7 +47,7 @@ Graph-RAG 采用 **AST (抽象语法树) 静态解析**与**图拓扑聚类算�
 - 🔗 **深层多跳调用链纵向追踪**：  
   点击任意函数或方法，画布立刻以明亮琥珀金光束点亮其 1~4 级下游执行链路，直观呈现复杂业务的纵深推进过程（$A \rightarrow B \rightarrow C \rightarrow D$）。
 - 📍 **任意两点 (A ➔ B) 最短调用路径穿透**：  
-  在网页端或终端直接输入任意两个组件名称（如 `standalone_chat_endpoint` ➔ `robust_read_excel`），系统毫秒级执行广度优先穿透搜索，并在画布连线上悬浮绘制**动作胶囊**（如 `[⚡ calls :L1479 ➔]`），左侧面板同步列出每一跳的行号、类型与工具说明。
+  在网页端或终端直接输入任意两个组件名称（如 `api_handler` ➔ `database_connector` 或 `OrderController` ➔ `NotificationService`），系统毫秒级执行广度优先穿透搜索，并在画布连线上悬浮绘制**动作胶囊**（如 `[⚡ calls :L88 ➔]`），左侧面板同步列出每一跳的行号、类型与工具说明。
 - 🧩 **架构子系统社区自动聚类**：  
   基于 Leiden/Louvain 图模块度优化算法，将错综复杂的代码库自动划分为多个高内聚、低耦合的架构子模块。
 - 👑 **架构隐患与代码体检分析**：  
@@ -114,28 +114,28 @@ Graph-RAG 支持快速穿透分析任意两个函数、类或端点之间是如�
 ### 方式一：在网页端可视化交互 (`graph.html`)
 1. 直接用浏览器打开 `graph.html`；
 2. 在左侧面板找到 **`📍 任意两点调用路径穿透 (A ➔ B 穿透)`** 面板；
-3. 输入起点 **A**（如 `standalone_chat_endpoint` 或 `main`）与终点 **B**（如 `robust_read_excel`）；
+3. 输入起点 **A**（如 `handle_request` 或 `OrderController`）与终点 **B**（如 `save_record` 或 `NotificationService`）；
 4. 点击 **`⚡ 穿透连线`** 按钮：
    - 全场无关节点虚化变暗，一条琥珀金色能量光束直贯两端；
-   - 画布连线上直接悬浮标注发生动作胶囊（如 `[⚡ calls :L1479 ➔]`）；
-   - 左侧面板按顺序展示每一步节点的类型、定义行号（`main.py:1450`）以及工具描述。
+   - 画布连线上直接悬浮标注发生动作胶囊（如 `[⚡ calls :L88 ➔]`）；
+   - 左侧面板按顺序展示每一步节点的类型、定义行号（`api/server.py:42`）以及工具描述。
 
 ### 方式二：在终端命令行运行 (CLI)
 ```bash
 # 零文件读取开销，直接通过图拓扑求解最短路径
-python skills/graph-rag/scripts/query_graph.py "standalone_chat_endpoint" "robust_read_excel" --graph ./graph_rag_out/graph.json
+python skills/graph-rag/scripts/query_graph.py "handle_request" "save_record" --graph ./graph_rag_out/graph.json
 ```
 
 **命令行输出反馈：**
 ```text
 ✨ [Shortest Path Found]: 3 hops (Zero files opened)
-  #0 [function] main:standalone_chat_endpoint (main.py:1450)
-     ── ⚡ calls (L1479) ──>
-  #1 [method] services.data_engine:DataAnalysisEngine.build_fact_sheet (services/data_engine.py:560)
-     ── ⚡ calls (L583) ──>
-  #2 [method] services.data_engine:DataAnalysisEngine.load_dataframes (services/data_engine.py:530)
-     ── ⚡ calls (L542) ──>
-  #3 [function] services.visualizer:robust_read_excel (services/visualizer.py:25)
+  #0 [function] api_server:handle_request (api/server.py:42)
+     ── ⚡ calls (L56) ──>
+  #1 [method] order_service:OrderService.create_order (services/order.py:118)
+     ── ⚡ calls (L142) ──>
+  #2 [method] order_repository:OrderRepository.save_record (repositories/order.py:75)
+     ── ⚡ calls (L88) ──>
+  #3 [function] db_client:execute_query (database/client.py:20)
 ```
 
 ---
@@ -153,23 +153,23 @@ cp -r skills/graph-rag ~/.config/opencode/skills/
 ### 2. 单点故障诊断工作流
 当出现报错堆栈或异常日志时，AI 直接调用技能查询异常符号的上下游爆炸半径：
 ```bash
-python skills/graph-rag/scripts/query_graph.py "DataAnalysisEngine" --graph ./graph_rag_out/graph.json
+python skills/graph-rag/scripts/query_graph.py "OrderService" --graph ./graph_rag_out/graph.json
 ```
 
 **诊断拓扑输出：**
 ```text
-🎯 [Target Symbol]: DataAnalysisEngine (class)
-   - Location: services/data_engine.py:18
-   - Subsystem: Cluster #2 (Data Processing)
-   - Degree: 28 (God Node 警示: 系统核心中枢节点)
+🎯 [Target Symbol]: OrderService (class)
+   - Location: services/order.py:24
+   - Subsystem: Cluster #2 (Business Logic)
+   - Degree: 16 (核心服务节点)
 
 🔍 [Upstream Callers] (谁触发了该组件):
-   ▲ [calls] standalone_chat_endpoint ➔ main.py:1479
-   ▲ [calls] execute_report_workflow ➔ services/data_engine.py:840
+   ▲ [calls] api_server:handle_request ➔ api/server.py:56
+   ▲ [calls] webhook_handler:on_payment_success ➔ handlers/webhook.py:92
 
 ⚡ [Downstream Dependencies] (该组件调用了谁):
-   ▼ [calls] robust_read_excel ➔ services/visualizer.py:25
-   ▼ [calls] build_fact_sheet ➔ services/data_engine.py:560
+   ▼ [calls] OrderRepository.save_record ➔ repositories/order.py:75
+   ▼ [calls] NotificationService.send_email ➔ services/notification.py:40
 ```
 
 ---
